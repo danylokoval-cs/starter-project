@@ -72,6 +72,10 @@ main {
   box-shadow: 0 8px 24px rgb(37 52 78 / 8%);
 }
 
+.panel--full {
+  grid-column: 1 / -1;
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;
