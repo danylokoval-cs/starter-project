@@ -136,3 +136,27 @@ GET {{api}}/api/incidents/search?q=O%27Brien
 
 ### Легітимний апостроф у слові комп'ютерного
 GET {{api}}/api/incidents/search?q=%D0%BA%D0%BE%D0%BC%D0%BF%27%D1%8E%D1%82%D0%B5%D1%80%D0%BD%D0%BE%D0%B3%D0%BE
+
+### S-02 — буквальний знак % (на штатному seed [])
+GET {{api}}/api/incidents/search?q=%25
+
+### S-02 — буквальний підкреслювач _ (на штатному seed [])
+GET {{api}}/api/incidents/search?q=_
+
+### S-02 — буквальний зворотний слеш \ (на штатному seed [])
+GET {{api}}/api/incidents/search?q=%5C
+
+### Сортування за замовчуванням (createdAtUtc)
+GET {{api}}/api/incidents/search
+
+### Сортування createdAtUtc
+GET {{api}}/api/incidents/search?sortBy=createdAtUtc
+
+### Сортування severity
+GET {{api}}/api/incidents/search?sortBy=severity
+
+### Сортування status
+GET {{api}}/api/incidents/search?sortBy=status
+
+### T-05 — невідоме сортування (400, ключ sortBy)
+GET {{api}}/api/incidents/search?sortBy=price
