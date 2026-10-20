@@ -1,0 +1,3 @@
+src/SecureLab.Api/Data/DatabaseBootstrap.cs:29:            await dbContext.Database.ExecuteSqlRawAsync(
+src/SecureLab.Api/Scaffolding/Lab02Endpoints.cs:19:                + "%' OR description ILIKE '%" + (q ?? "") + "%' ORDER BY " + order + " LIMIT 50";
+src/SecureLab.Api/Scaffolding/Lab02Endpoints.cs:20:            var rows = await db.Incidents.FromSqlRaw(sql).AsNoTracking().ToListAsync(ct);
