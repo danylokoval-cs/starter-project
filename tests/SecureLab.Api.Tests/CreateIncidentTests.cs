@@ -10,11 +10,13 @@ namespace SecureLab.Api.Tests;
 public sealed class CreateIncidentTests(SecureLabApiFactory factory)
     : IClassFixture<SecureLabApiFactory>
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    private Task<HttpClient> LoginAliceAsync() =>
+        factory.LoginAsync("alice", TestSecrets.SeedPassword);
 
     [Fact]
     public async Task Post_WithInvalidDto_Returns400WithFieldErrors()
     {
+        using var client = await LoginAliceAsync();
         var body = new
         {
             title = "   ",
@@ -23,7 +25,7 @@ public sealed class CreateIncidentTests(SecureLabApiFactory factory)
             occurredAtUtc = DateTimeOffset.UtcNow.AddYears(1)
         };
 
-        using var response = await _client.PostAsJsonAsync("/api/incidents", body);
+        using var response = await client.PostAsJsonAsync("/api/incidents", body);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json",
@@ -41,6 +43,7 @@ public sealed class CreateIncidentTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Post_WithDuplicateActiveTitle_Returns409()
     {
+        using var client = await LoginAliceAsync();
         var title = $"Regression-{Guid.NewGuid():N}";
         var body = new
         {
@@ -52,10 +55,10 @@ public sealed class CreateIncidentTests(SecureLabApiFactory factory)
 
         try
         {
-            using var first = await _client.PostAsJsonAsync("/api/incidents", body);
+            using var first = await client.PostAsJsonAsync("/api/incidents", body);
             Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
-            using var second = await _client.PostAsJsonAsync("/api/incidents", body);
+            using var second = await client.PostAsJsonAsync("/api/incidents", body);
             Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
             Assert.Equal("application/problem+json",
                 second.Content.Headers.ContentType?.MediaType);
@@ -72,12 +75,13 @@ public sealed class CreateIncidentTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Post_HighSeverityDescriptionBoundary_Rejects39AndAccepts40()
     {
+        using var client = await LoginAliceAsync();
         var shortTitle = $"Regression-{Guid.NewGuid():N}";
         var longTitle = $"Regression-{Guid.NewGuid():N}";
 
         try
         {
-            using var shortResponse = await _client.PostAsJsonAsync("/api/incidents", new
+            using var shortResponse = await client.PostAsJsonAsync("/api/incidents", new
             {
                 title = shortTitle,
                 description = new string('x', 39),
@@ -90,7 +94,7 @@ public sealed class CreateIncidentTests(SecureLabApiFactory factory)
             Assert.True(document.RootElement.GetProperty("errors")
                 .TryGetProperty("description", out _));
 
-            using var longResponse = await _client.PostAsJsonAsync("/api/incidents", new
+            using var longResponse = await client.PostAsJsonAsync("/api/incidents", new
             {
                 title = longTitle,
                 description = new string('x', 40),

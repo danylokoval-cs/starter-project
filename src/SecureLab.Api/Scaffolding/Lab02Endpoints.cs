@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
@@ -47,8 +48,14 @@ public static class Lab02Endpoints
                 .ToListAsync(ct);
             return Results.Ok(rows);
         });
-        app.MapPost("/api/incidents", async (CreateIncidentRequest request, SecureLabDbContext db, CancellationToken ct) =>
+        app.MapPost("/api/incidents", async (
+            CreateIncidentRequest request, HttpContext httpContext, SecureLabDbContext db, CancellationToken ct) =>
         {
+            if (!Guid.TryParse(httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var ownerUserId))
+                return Results.Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "Не вдалося визначити поточного користувача.");
+
             var now = DateTimeOffset.UtcNow;
             var errors = new Dictionary<string, string[]>();
 
@@ -92,7 +99,7 @@ public static class Lab02Endpoints
 
             var incident = new Incident
             {
-                Id = Guid.NewGuid(), OwnerUserId = DbSeeder.AliceId,
+                Id = Guid.NewGuid(), OwnerUserId = ownerUserId,
                 Title = title, Description = description,
                 Severity = severity,
                 Status = IncidentStatus.New, OccurredAtUtc = request.OccurredAtUtc!.Value.ToUniversalTime(),
@@ -104,7 +111,7 @@ public static class Lab02Endpoints
                 incident.Id, incident.Title, incident.Description,
                 incident.Severity.ToString(), incident.Status.ToString(),
                 incident.OccurredAtUtc, incident.CreatedAtUtc));
-        });
+        }).RequireAuthorization();
     }
 
     private static string EscapeLike(string value) =>

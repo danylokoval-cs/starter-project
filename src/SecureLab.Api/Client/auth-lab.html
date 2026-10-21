@@ -1,7 +1,34 @@
 <!doctype html>
 <html lang="uk"><meta charset="utf-8"><title>ЛР 03 — сеанс</title>
 <h1>Навчальний сеанс</h1>
+
+<h2>Реєстрація</h2>
+<form id="register">
+<label>Ім’я користувача <input name="userName" autocomplete="username" required maxlength="256"></label>
+<label>Email <input name="email" type="email" autocomplete="email" required maxlength="256"></label>
+<label>Відображуване ім’я <input name="displayName" required maxlength="120"></label>
+<label>Пароль <input name="password" type="password" autocomplete="new-password" required maxlength="128"></label>
+<button>Зареєструватися</button></form>
+
+<h2>Вхід</h2>
 <form id="login"><label>Ім’я <input name="userName" autocomplete="username" required></label>
 <label>Пароль <input name="password" type="password" autocomplete="current-password" required></label><button>Увійти</button></form>
-<button id="me">Мій профіль</button><button id="logout">Вийти</button><pre id="result"></pre>
+
+<h2>Профіль</h2>
+<button id="me">Мій профіль</button><button id="logout">Вийти</button>
+<dl id="profile" hidden>
+<dt>Ім’я</dt><dd id="profile-name"></dd>
+<dt>Роль</dt><dd id="profile-role"></dd>
+<dt>Id</dt><dd id="profile-id"></dd>
+</dl>
+
+<h2>Новий інцидент</h2>
+<form id="incident">
+<label>Заголовок <input name="title" required maxlength="160"></label>
+<label>Опис <textarea name="description" required maxlength="4000"></textarea></label>
+<label>Серйозність <select name="severity"><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></label>
+<label>Час події <input name="occurredAtUtc" type="datetime-local" required></label>
+<button>Створити</button></form>
+
+<pre id="result"></pre>
 <script src="auth-lab.js" defer></script></html>
