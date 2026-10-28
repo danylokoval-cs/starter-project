@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using SecureLab.Api.Application.Authorization;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 
@@ -9,10 +10,15 @@ public static class Lab02Endpoints
 {
     public static void MapLab02Endpoints(this WebApplication app)
     {
-        app.MapGet("/api/incidents/search", async (string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
+        app.MapGet("/api/incidents/search", async (
+            string? q, string? sortBy, HttpContext httpContext, SecureLabDbContext db, CancellationToken ct) =>
         {
+            if (!IncidentAccess.TryGetViewer(httpContext.User, out var viewer))
+                return Results.Challenge();
+
             var pattern = "%" + EscapeLike(q ?? "") + "%";
             var found = db.Incidents.AsNoTracking()
+                .Where(IncidentAccess.VisibleTo(viewer))
                 .Where(item => EF.Functions.ILike(item.Title, pattern, "\\")
                     || EF.Functions.ILike(item.Description, pattern, "\\"));
 
@@ -47,7 +53,7 @@ public static class Lab02Endpoints
                     row.Severity.ToString(), row.Status.ToString(), row.CreatedAtUtc))
                 .ToListAsync(ct);
             return Results.Ok(rows);
-        });
+        }).RequireAuthorization();
         app.MapPost("/api/incidents", async (
             CreateIncidentRequest request, HttpContext httpContext, SecureLabDbContext db, CancellationToken ct) =>
         {

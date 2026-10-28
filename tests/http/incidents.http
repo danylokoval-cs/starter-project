@@ -1,6 +1,12 @@
 @host = http://localhost:5080
 @aliceIncidentId = 20000000-0000-0000-0000-000000000001
 
+### Login (alice): cookie потрібен для всіх запитів нижче
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "alice", "password": "{{$processEnv SeedUsers__Password}}" }
+
 ### Health/readiness
 GET {{host}}/health
 Accept: application/json
