@@ -1,0 +1,94 @@
+@host = http://localhost:5080
+@aliceIncidentId = 20000000-0000-0000-0000-000000000001
+@bobIncidentId = 20000000-0000-0000-0000-000000000002
+@aliceNewIncidentId = 20000000-0000-0000-0000-000000000003
+@unknownIncidentId = 99999999-9999-9999-9999-999999999999
+@aliceInternalCommentId = 30000000-0000-0000-0000-000000000003
+@bobCommentId = 30000000-0000-0000-0000-000000000002
+
+### 1. Alice: login (очікується 204)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "alice", "password": "{{$processEnv SeedUsers__Password}}" }
+
+### 2. Alice: власний інцидент (vulnerable: 200; fixed: 200)
+GET {{host}}/api/incidents/{{aliceIncidentId}}
+Accept: application/json
+
+### 3. Alice: чужий інцидент Bob (vulnerable: 200 з даними Bob; fixed: 404 Problem Details)
+GET {{host}}/api/incidents/{{bobIncidentId}}
+Accept: application/json
+
+### 4. Alice: список (vulnerable: усі п'ять інцидентів; fixed: лише інциденти Alice)
+GET {{host}}/api/incidents
+Accept: application/json
+
+### 5. Alice: внутрішній коментар Morgan до власного інциденту (vulnerable: 200 з текстом; fixed: 404)
+GET {{host}}/api/incident-comments/{{aliceInternalCommentId}}
+Accept: application/json
+
+### 6. Alice: коментар до чужого інциденту (vulnerable: 200; fixed: 404)
+GET {{host}}/api/incident-comments/{{bobCommentId}}
+Accept: application/json
+
+### 7. Alice: зведення (vulnerable: усі інциденти; fixed: лише власні)
+GET {{host}}/api/incidents/severity-summary
+Accept: application/json
+
+### 8. Alice: пошук чужого запису (vulnerable: знаходить запис Bob; fixed: порожній масив)
+GET {{host}}/api/incidents/search?q=O%27Brien
+Accept: application/json
+
+### 9. Alice: неіснуючий id (vulnerable і fixed: 404; на fixed відповідь така сама, як у п. 3, відрізняється лише traceId)
+GET {{host}}/api/incidents/{{unknownIncidentId}}
+Accept: application/json
+
+### 10. Alice: зміна чужого інциденту (vulnerable: 204 і дані Bob змінено; fixed: 404, стан без змін)
+PUT {{host}}/api/incidents/{{bobIncidentId}}
+Content-Type: application/json
+
+{ "title": "Змінено без права", "description": "Навчальний опис, змінений чужим користувачем." }
+
+### 11. Alice: перехід статусу чужого інциденту, клієнт сам задає статус (vulnerable: 204 і статус Closed; fixed: 404)
+POST {{host}}/api/incidents/{{bobIncidentId}}/triage
+Content-Type: application/json
+
+{ "status": "Closed", "role": "Analyst" }
+
+### 12. Alice: triage власного інциденту зі статусом New, роль Reporter (vulnerable: 204; fixed: 403)
+POST {{host}}/api/incidents/{{aliceNewIncidentId}}/triage
+Content-Type: application/json
+
+{ "status": "Triaged" }
+
+### 13. Alice: зміна власного інциденту зі статусом New (fixed: 204; vulnerable: 204)
+PUT {{host}}/api/incidents/{{aliceNewIncidentId}}
+Content-Type: application/json
+
+{ "title": "Оновлений заголовок власного інциденту", "description": "Навчальний опис, змінений власником інциденту." }
+
+### 14. Alice: видалення чужого інциденту (vulnerable: 204 і запис Bob видалено; fixed: 404). Виконувати останнім у vulnerable-стані.
+DELETE {{host}}/api/incidents/{{bobIncidentId}}
+
+### 15. Morgan (Analyst): login (очікується 204)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "morgan", "password": "{{$processEnv SeedUsers__Password}}" }
+
+### 16. Morgan: читає чужий інцидент для аналізу (fixed: 200, внутрішній коментар видно)
+GET {{host}}/api/incidents/{{aliceIncidentId}}
+Accept: application/json
+
+### 17. Morgan: зміна вмісту чужого інциденту (fixed: 403, бо Analyst бачить, але не змінює вміст)
+PUT {{host}}/api/incidents/{{aliceIncidentId}}
+Content-Type: application/json
+
+{ "title": "Змінено аналітиком", "description": "Навчальний опис, змінений аналітиком без права." }
+
+### 18. Morgan: triage інциденту Alice зі статусом New (fixed: 204)
+POST {{host}}/api/incidents/{{aliceNewIncidentId}}/triage
+
+### 19. Morgan: повторний triage того самого інциденту (fixed: 409 Problem Details)
+POST {{host}}/api/incidents/{{aliceNewIncidentId}}/triage

@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using SecureLab.Api.Application.Incidents;
+using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using SecureLab.Api.Presentation.Contracts;
 
@@ -25,6 +27,23 @@ public static class IncidentEndpoints
             .WithName("GetIncidentSeveritySummary")
             .Produces<IReadOnlyList<IncidentSeveritySummaryResponse>>()
             .ProducesValidationProblem();
+
+        group.MapPut("/{id:guid}", UpdateAsync)
+            .WithName("UpdateIncident")
+            .RequireAuthorization();
+
+        group.MapDelete("/{id:guid}", DeleteAsync)
+            .WithName("DeleteIncident")
+            .RequireAuthorization();
+
+        group.MapPost("/{id:guid}/triage", TriageAsync)
+            .WithName("TriageIncident")
+            .RequireAuthorization();
+
+        endpoints.MapGet("/api/incident-comments/{id:guid}", GetCommentAsync)
+            .WithTags("Incident comments")
+            .WithName("GetIncidentComment")
+            .RequireAuthorization();
 
         return endpoints;
     }
@@ -87,5 +106,82 @@ public static class IncidentEndpoints
         }
 
         return Results.Ok(await queries.GetSeveritySummaryAsync(parsedStatus, cancellationToken));
+    }
+
+    private static async Task<IResult> UpdateAsync(
+        Guid id,
+        UpdateIncidentRequest request,
+        SecureLabDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var incident = await dbContext.Incidents
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (incident is null)
+        {
+            return Results.Problem(title: "Інцидент не знайдено", statusCode: StatusCodes.Status404NotFound);
+        }
+
+        incident.Title = request.Title ?? incident.Title;
+        incident.Description = request.Description ?? incident.Description;
+        incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> DeleteAsync(
+        Guid id,
+        SecureLabDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var incident = await dbContext.Incidents
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (incident is null)
+        {
+            return Results.Problem(title: "Інцидент не знайдено", statusCode: StatusCodes.Status404NotFound);
+        }
+
+        dbContext.Incidents.Remove(incident);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> TriageAsync(
+        Guid id,
+        TriageIncidentRequest? request,
+        SecureLabDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var incident = await dbContext.Incidents
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (incident is null)
+        {
+            return Results.Problem(title: "Інцидент не знайдено", statusCode: StatusCodes.Status404NotFound);
+        }
+
+        incident.Status = Enum.TryParse<IncidentStatus>(request?.Status, ignoreCase: true, out var next)
+            ? next
+            : IncidentStatus.Triaged;
+        incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> GetCommentAsync(
+        Guid id,
+        SecureLabDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var comment = await dbContext.IncidentComments
+            .AsNoTracking()
+            .Where(item => item.Id == id)
+            .Select(item => new IncidentCommentResponse(
+                item.Id,
+                item.Author.DisplayName,
+                item.Text,
+                item.CreatedAtUtc))
+            .SingleOrDefaultAsync(cancellationToken);
+        return comment is null
+            ? Results.Problem(title: "Коментар не знайдено", statusCode: StatusCodes.Status404NotFound)
+            : Results.Ok(comment);
     }
 }
